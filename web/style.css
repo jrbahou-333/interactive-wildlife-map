@@ -1,0 +1,138 @@
+/* Make the page and map fill the whole screen with no margins. */
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, sans-serif;
+}
+
+/* The map needs an explicit size or it renders 0px tall. */
+#map {
+  position: absolute;
+  inset: 0; /* shorthand for top/right/bottom/left: 0 */
+}
+
+/* A small status panel floating over the map. */
+#hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1; /* sit above the map canvas */
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Group filter panel — top-left, just below the HUD. */
+#filter {
+  position: absolute;
+  top: 56px;
+  left: 10px;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  font: 14px system-ui, sans-serif;
+}
+#filter label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  cursor: pointer;
+  user-select: none; /* don't select the text when tapping the row */
+}
+#filter input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2e7d5b; /* match the markers' green */
+}
+
+/* Base styling for the MapLibre popup (the hexagon panel lives inside it). */
+.maplibregl-popup-content {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Hexagon click panel: a heading + an expandable card per species. */
+.hex-panel {
+  max-height: 60vh;       /* stay on-screen; scroll if there are many cards */
+  overflow-y: auto;
+}
+.hex-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.hex-card {
+  margin-bottom: 4px;
+  background: #f3f6f1;
+  border-radius: 6px;
+  overflow: hidden;       /* keep the expanded facts within the rounded corners */
+}
+.hex-card.open {
+  background: #e7efe3;     /* slightly darker when expanded */
+}
+/* The always-visible row: thumbnail + name/count + chevron. Clickable. */
+.hex-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.hex-card:hover {
+  background: #e7efe3;    /* highlight as you drag over cards */
+}
+.hex-card-img {
+  width: 44px;
+  height: 44px;
+  flex: none;             /* don't let the image shrink */
+  object-fit: cover;
+  border-radius: 4px;
+  background: #e3e7e0;
+}
+.hex-card-text {
+  flex: 1;                /* take the middle, pushing the chevron right */
+}
+.hex-card-name {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.hex-card-count {
+  color: #666;
+  font-size: 12px;
+}
+.hex-card-chev {
+  color: #2e7d5b;
+  font-size: 13px;
+  flex: none;
+}
+/* The expandable facts area (hidden until the card is opened). */
+.hex-card-facts {
+  padding: 4px 8px 8px 8px;
+  font-size: 12px;
+}
+.fact {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  border-top: 1px solid #dfe6db;
+}
+.fact-k {
+  color: #6b7268;
+  flex: none;
+  width: 92px;
+}
+.fact-v {
+  color: #2c3530;
+}
+.hex-more {
+  color: #888;
+  font-size: 11px;
+  margin-top: 2px;
+}

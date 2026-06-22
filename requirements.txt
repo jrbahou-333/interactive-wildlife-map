@@ -1,0 +1,6 @@
+# Data pipeline dependencies (the Python side)
+pygbif>=0.6.4      # Official client for the GBIF biodiversity API
+pandas>=2.2        # Data wrangling
+pyarrow>=16.0      # Lets pandas read/write fast Parquet files
+h3>=4.1           # Uber's hexagonal grid system — turns points into map hotspots
+requests>=2.32     # For enrichment calls (Wikipedia/Wikimedia) later

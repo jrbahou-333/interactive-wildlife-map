@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data (can be large / regenerable — don't commit raw dumps)
+data/raw/
+data/processed/
+# Large, regenerable pipeline intermediate the web app no longer loads
+# (the app only needs web/data/hexes.geojson, which IS committed).
+web/data/sightings.geojson
+
+# Local tool/editor config
+.claude/
+
+# OS
+.DS_Store

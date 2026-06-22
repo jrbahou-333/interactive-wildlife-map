@@ -1,0 +1,8 @@
+<!-- Last-resort placeholder shown when a sighting has neither its own photo
+     nor a representative species photo from Wikipedia. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="130" viewBox="0 0 240 130">
+  <rect width="240" height="130" fill="#e8ebe6"/>
+  <text x="120" y="60" font-size="34" text-anchor="middle" dominant-baseline="central">🐾</text>
+  <text x="120" y="96" font-size="13" fill="#7a8076" font-family="system-ui, sans-serif"
+        text-anchor="middle">no photo available</text>
+</svg>
