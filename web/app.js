@@ -31,8 +31,8 @@ const GROUP_ICONS = {
   Birds: "🐦",
 };
 
-// How many species cards to show per hexagon panel.
-const TOP_SPECIES = 5;
+// How many species cards to show before the panel is expanded.
+const COLLAPSED_CARDS = 3;
 
 // Green colour ramp for the hexagons, applied to whatever count expression we
 // pass in — the total normally, or a filtered per-group sum when the group
@@ -65,10 +65,6 @@ map.addControl(new maplibregl.NavigationControl(), "top-right");
 
 // Wait for the basemap before adding our own source/layers.
 map.on("load", async () => {
-  // Which groups are currently shown. Starts with all; the filter menu (set up
-  // below) updates this and calls applyFilter().
-  let activeGroups = Object.keys(GROUP_ICONS);
-
   // --- 2. Load the hexagons ------------------------------------------------
   let hexgeo;
   try {
@@ -111,27 +107,78 @@ map.on("load", async () => {
     className: "hex-popup",
   });
 
-  // Placeholder "key facts" shown when a card is expanded. Wire these to real
-  // sources later — we already have IUCN red-list status in the GBIF data, and
-  // a fun fact could come from Wikipedia.
-  function factsPlaceholder(species) {
-    const rows = [
-      ["Rarity", "Frequently seen locally"],
-      ["Ecological status", "Native · Least Concern"],
-      ["Did you know?", `A fun fact about the ${species.name} will go here.`],
-    ];
+  // Build the key-facts HTML for an expanded species card. Data comes from the
+  // pipeline: rarity is a local-frequency tier, iucn is the IUCN Red List
+  // category, and extract is the opening line of the Wikipedia article.
+  function speciesFacts(s) {
+    const rows = [];
+    // Rarity — how often this species is seen across the whole dataset.
+    if (s.rarity) rows.push(["Rarity", s.rarity]);
+    // IUCN Red List status — this is the GLOBAL assessment, not UK-specific.
+    // A species can be globally endangered but locally common (e.g. rabbit).
+    if (s.iucn) rows.push(["IUCN (global)", s.iucn]);
+    // Wikipedia extract — trimmed to the first sentence for brevity.
+    if (s.extract) {
+      // Grab the first sentence: split on ". " and take the first part.
+      const firstSentence = s.extract.split(". ")[0] + ".";
+      rows.push(["Did you know?", firstSentence]);
+    }
+    // Fallback if the pipeline didn't supply any facts yet.
+    if (!rows.length) rows.push(["Info", "No details available yet."]);
     return rows
       .map(([k, v]) => `<div class="fact"><span class="fact-k">${k}</span><span class="fact-v">${v}</span></div>`)
       .join("");
   }
 
-  // Build the panel DOM for one hexagon. Returns a node (so we can attach click
-  // handlers to the cards) for popup.setDOMContent().
+  // Show a photo full-screen. Click anywhere to dismiss.
+  function openLightbox(src, alt) {
+    const overlay = document.createElement("div");
+    overlay.className = "lightbox";
+    overlay.innerHTML = `<img src="${src}" alt="${alt || ""}" />`;
+    overlay.addEventListener("click", () => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+
+  // Build one expandable species card. The header toggles the facts open; when
+  // open, the larger photo can be clicked to enlarge it in the lightbox.
+  function speciesCard(s) {
+    const card = document.createElement("div");
+    card.className = "hex-card";
+    card.innerHTML =
+      `<div class="hex-card-head">` +
+        `<img class="hex-card-img" src="${s.image}" alt="${s.name}" ` +
+          `onerror="this.onerror=null;this.src='img/no-photo.svg'" />` +
+        `<div class="hex-card-text">` +
+          `<div class="hex-card-name">${s.name}</div>` +
+          `<div class="hex-card-count">${s.count} sighting${s.count === 1 ? "" : "s"}</div>` +
+        `</div>` +
+        `<div class="hex-card-chev">▸</div>` +
+      `</div>` +
+      `<div class="hex-card-facts" hidden>` +
+        `<img class="hex-card-photo" src="${s.image}" alt="${s.name}" title="Click to enlarge" ` +
+          `onerror="this.onerror=null;this.src='img/no-photo.svg'" />` +
+        speciesFacts(s) +
+      `</div>`;
+
+    const head = card.querySelector(".hex-card-head");
+    const facts = card.querySelector(".hex-card-facts");
+    const chev = card.querySelector(".hex-card-chev");
+    head.addEventListener("click", () => {
+      const opening = facts.hidden;
+      facts.hidden = !opening;
+      card.classList.toggle("open", opening);
+      chev.textContent = opening ? "▾" : "▸";
+    });
+    card.querySelector(".hex-card-photo")
+      .addEventListener("click", () => openLightbox(s.image, s.name));
+    return card;
+  }
+
+  // Build the panel DOM for one hexagon. Collapsed it shows the top few species;
+  // "Show all" expands to a scrollable list grouped by animal group.
   function buildHexPanel(p) {
-    // aggregate.py stored the per-species breakdown as a JSON string. Keep only
-    // active groups, then recompute totals so the panel matches the map.
-    const species = JSON.parse(p.species) // [{name, group, count, image}, ...]
-      .filter((s) => activeGroups.includes(s.group));
+    // The species list is already filtered by applyFilter() — just parse it.
+    const species = JSON.parse(p.species);
     const total = species.reduce((sum, s) => sum + s.count, 0);
 
     const root = document.createElement("div");
@@ -140,40 +187,68 @@ map.on("load", async () => {
       `<div class="hex-title">${total} sighting${total === 1 ? "" : "s"} · ` +
       `${species.length} species here</div>`;
 
-    for (const s of species.slice(0, TOP_SPECIES)) {
-      const card = document.createElement("div");
-      card.className = "hex-card";
-      card.innerHTML =
-        `<div class="hex-card-head">` +
-          `<img class="hex-card-img" src="${s.image}" alt="${s.name}" ` +
-            `onerror="this.onerror=null;this.src='img/no-photo.svg'" />` +
-          `<div class="hex-card-text">` +
-            `<div class="hex-card-name">${s.name}</div>` +
-            `<div class="hex-card-count">${s.count} sighting${s.count === 1 ? "" : "s"}</div>` +
-          `</div>` +
-          `<div class="hex-card-chev">▸</div>` +
-        `</div>` +
-        `<div class="hex-card-facts" hidden>${factsPlaceholder(s)}</div>`;
+    const list = document.createElement("div");
+    list.className = "hex-cards";
+    root.appendChild(list);
 
-      // Click the card header to expand/collapse its facts.
-      const head = card.querySelector(".hex-card-head");
-      const facts = card.querySelector(".hex-card-facts");
-      const chev = card.querySelector(".hex-card-chev");
-      head.addEventListener("click", () => {
-        const opening = facts.hidden;
-        facts.hidden = !opening;
-        card.classList.toggle("open", opening);
-        chev.textContent = opening ? "▾" : "▸";
-      });
+    // Re-render the card list for the current expanded/collapsed state.
+    let expanded = false;
+    function render() {
+      list.innerHTML = "";
+      list.classList.toggle("scroll", expanded); // cap height + scroll when expanded
+      if (!expanded) {
+        // Collapsed: the top species overall (already sorted by count).
+        species.slice(0, COLLAPSED_CARDS).forEach((s) => list.appendChild(speciesCard(s)));
+      } else {
+        // Expanded: every species, grouped by animal group (in GROUP_ICONS order).
+        // Each group header is clickable — toggles its cards open/closed.
+        for (const group of Object.keys(GROUP_ICONS)) {
+          const inGroup = species.filter((s) => s.group === group);
+          if (!inGroup.length) continue;
 
-      root.appendChild(card);
+          // Wrapper holds the header + its cards so we can show/hide cards together.
+          const section = document.createElement("div");
+          section.className = "hex-section";
+
+          const header = document.createElement("div");
+          header.className = "hex-group";
+          // Chevron shows collapse state; starts open (▾).
+          header.innerHTML =
+            `<span class="hex-group-label">${GROUP_ICONS[group]} ${group} (${inGroup.length})</span>` +
+            `<span class="hex-group-chev">▾</span>`;
+          section.appendChild(header);
+
+          const cardWrap = document.createElement("div");
+          inGroup.forEach((s) => cardWrap.appendChild(speciesCard(s)));
+          section.appendChild(cardWrap);
+
+          // Click the header to collapse/expand this group's cards.
+          header.addEventListener("click", () => {
+            const hiding = !cardWrap.hidden;
+            cardWrap.hidden = hiding;
+            header.querySelector(".hex-group-chev").textContent = hiding ? "▸" : "▾";
+            section.classList.toggle("collapsed", hiding);
+          });
+
+          list.appendChild(section);
+        }
+      }
     }
+    render();
 
-    if (species.length > TOP_SPECIES) {
-      const more = document.createElement("div");
-      more.className = "hex-more";
-      more.textContent = `+${species.length - TOP_SPECIES} more species`;
-      root.appendChild(more);
+    // "Show all / Show fewer" toggle, only when there's more than the collapsed set.
+    if (species.length > COLLAPSED_CARDS) {
+      const toggle = document.createElement("button");
+      toggle.className = "hex-toggle";
+      const label = () =>
+        (toggle.textContent = expanded ? "Show fewer ▴" : `Show all ${species.length} species ▾`);
+      label();
+      toggle.addEventListener("click", () => {
+        expanded = !expanded;
+        render();
+        label();
+      });
+      root.appendChild(toggle);
     }
     return root;
   }
@@ -193,39 +268,104 @@ map.on("load", async () => {
   map.on("mouseenter", "hex-fill", () => (map.getCanvas().style.cursor = "pointer"));
   map.on("mouseleave", "hex-fill", () => (map.getCanvas().style.cursor = ""));
 
-  // --- 4. Group filter -----------------------------------------------------
-  // Sum of the active groups' per-hex counts, e.g.
-  //   ["+", 0, coalesce(count_Mammals,0), coalesce(count_Birds,0)]
-  // (the leading 0 keeps it valid when no groups are selected).
-  function activeCountExpr() {
-    return ["+", 0, ...activeGroups.map((g) => ["coalesce", ["get", `count_${g}`], 0])];
+  // --- 4. Filters -----------------------------------------------------------
+  // Filters work at the species level: group, rarity tier, and IUCN status.
+  // When any filter changes we recompute per-hex counts from only the matching
+  // species, push a new filtered copy of the hex data to the map source, and
+  // recolour accordingly.
+
+  // Pre-parse every hex's species list once (expensive to repeat on each click).
+  const hexSpecies = hexgeo.features.map((f) => JSON.parse(f.properties.species));
+
+  // Collect all distinct rarity and IUCN values across the dataset so the
+  // dropdowns are data-driven — add a new group or rarity tier in the pipeline
+  // and it flows through automatically.
+  const allRarities = [...new Set(hexSpecies.flat().map((s) => s.rarity).filter(Boolean))];
+  const allIucn = [...new Set(hexSpecies.flat().map((s) => s.iucn).filter(Boolean))];
+
+  // Order rarity from common → rare so the dropdown reads naturally.
+  const RARITY_ORDER = ["Very common", "Common", "Uncommon", "Scarce", "Rare"];
+  allRarities.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
+
+  // Current filter state — "all" means no restriction on that axis.
+  let filterGroup = "all";
+  let filterRarity = "all";
+  let filterIucn = "all";
+
+  // Return only the species in a hex that pass the active filters.
+  function filterSpecies(speciesList) {
+    return speciesList.filter((s) =>
+      (filterGroup === "all" || s.group === filterGroup) &&
+      (filterRarity === "all" || s.rarity === filterRarity) &&
+      (filterIucn === "all" || s.iucn === filterIucn)
+    );
   }
 
+  // Recompute hex counts from filtered species and push to the map.
   function applyFilter() {
-    const counts = activeCountExpr();
-    map.setPaintProperty("hex-fill", "fill-color", hexRamp(counts));
-    map.setFilter("hex-fill", [">", counts, 0]);
-    map.setFilter("hex-outline", [">", counts, 0]);
-    panel.remove(); // close any open panel so it can't show now-hidden content
+    const updated = JSON.parse(JSON.stringify(hexgeo)); // deep copy
+    for (let i = 0; i < updated.features.length; i++) {
+      const matched = filterSpecies(hexSpecies[i]);
+      const count = matched.reduce((sum, s) => sum + s.count, 0);
+      // Overwrite the species JSON so buildHexPanel reads the filtered set.
+      updated.features[i].properties.species = JSON.stringify(matched);
+      updated.features[i].properties.count = count;
+    }
+    map.getSource("hexes").setData(updated);
+    // Recolour using the (now-overwritten) count property.
+    map.setPaintProperty("hex-fill", "fill-color", hexRamp(["get", "count"]));
+    map.setFilter("hex-fill", [">", ["get", "count"], 0]);
+    map.setFilter("hex-outline", [">", ["get", "count"], 0]);
+    panel.remove();
+    updateHud(updated);
   }
 
-  // Build a checkbox per group from GROUP_ICONS.
+  // Build the filter panel: three <select> dropdowns.
   const filterEl = document.getElementById("filter");
-  filterEl.innerHTML = Object.entries(GROUP_ICONS)
-    .map(([group, emoji]) =>
-      `<label><input type="checkbox" value="${group}" checked /> ${emoji} ${group}</label>`)
-    .join("");
-  filterEl.addEventListener("change", () => {
-    activeGroups = [...filterEl.querySelectorAll("input:checked")].map((i) => i.value);
-    applyFilter();
-  });
-
-  // --- HUD: totals derived from the hexagons -------------------------------
-  const totalObs = hexgeo.features.reduce((sum, f) => sum + f.properties.count, 0);
-  const speciesSet = new Set();
-  for (const f of hexgeo.features) {
-    for (const s of JSON.parse(f.properties.species)) speciesSet.add(s.name);
+  function buildSelect(label, options, onChange) {
+    const wrap = document.createElement("div");
+    wrap.className = "filter-row";
+    const lbl = document.createElement("label");
+    lbl.textContent = label;
+    const sel = document.createElement("select");
+    sel.innerHTML = `<option value="all">All</option>` +
+      options.map((o) => `<option value="${o}">${o}</option>`).join("");
+    sel.addEventListener("change", () => { onChange(sel.value); applyFilter(); });
+    wrap.appendChild(lbl);
+    wrap.appendChild(sel);
+    return wrap;
   }
-  document.getElementById("hud").textContent =
-    `${totalObs.toLocaleString()} observations · ${speciesSet.size} species around Crosby`;
+
+  // Group filter — list each group with its emoji.
+  const groupOptions = Object.entries(GROUP_ICONS).map(([g, e]) => `${e} ${g}`);
+  const groupValues = Object.keys(GROUP_ICONS);
+  const groupWrap = document.createElement("div");
+  groupWrap.className = "filter-row";
+  const groupLbl = document.createElement("label");
+  groupLbl.textContent = "Group";
+  const groupSel = document.createElement("select");
+  groupSel.innerHTML = `<option value="all">All groups</option>` +
+    groupValues.map((g, i) => `<option value="${g}">${groupOptions[i]}</option>`).join("");
+  groupSel.addEventListener("change", () => { filterGroup = groupSel.value; applyFilter(); });
+  groupWrap.appendChild(groupLbl);
+  groupWrap.appendChild(groupSel);
+  filterEl.appendChild(groupWrap);
+
+  // Rarity filter.
+  filterEl.appendChild(buildSelect("Rarity", allRarities, (v) => { filterRarity = v; }));
+
+  // Conservation status filter.
+  filterEl.appendChild(buildSelect("Conservation", allIucn, (v) => { filterIucn = v; }));
+
+  // --- HUD: totals derived from the (filtered) hexagons --------------------
+  function updateHud(geo) {
+    const totalObs = geo.features.reduce((sum, f) => sum + f.properties.count, 0);
+    const speciesSet = new Set();
+    for (const f of geo.features) {
+      for (const s of JSON.parse(f.properties.species)) speciesSet.add(s.name);
+    }
+    document.getElementById("hud").textContent =
+      `${totalObs.toLocaleString()} observations · ${speciesSet.size} species around Crosby`;
+  }
+  updateHud(hexgeo);
 });

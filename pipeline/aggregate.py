@@ -42,8 +42,69 @@ def hex_polygon(cell: str) -> dict:
     return {"type": "Polygon", "coordinates": [ring]}
 
 
+def rarity_tiers(features: list[dict]) -> dict[str, str]:
+    """Assign every species a rarity label based on its total sighting count
+    across the entire dataset. Tiers are split into five buckets by percentile
+    so they adapt automatically as the dataset grows.
+
+    The tiers:
+      Very common  — top 20% of species by sighting count
+      Common       — 40th–80th percentile
+      Uncommon     — 15th–40th percentile
+      Scarce       — 5th–15th percentile
+      Rare         — bottom 5%
+    """
+    from collections import Counter
+    totals = Counter()
+    for f in features:
+        p = f["properties"]
+        totals[p["commonName"] or p["scientificName"]] += 1
+
+    if not totals:
+        return {}
+
+    sorted_counts = sorted(totals.values())
+    n = len(sorted_counts)
+    # Percentile thresholds — index into the sorted list.
+    def pct(p):
+        return sorted_counts[min(int(n * p), n - 1)]
+
+    p5, p15, p40, p80 = pct(0.05), pct(0.15), pct(0.40), pct(0.80)
+
+    tiers = {}
+    for name, count in totals.items():
+        if count >= p80:
+            tiers[name] = "Very common"
+        elif count >= p40:
+            tiers[name] = "Common"
+        elif count >= p15:
+            tiers[name] = "Uncommon"
+        elif count >= p5:
+            tiers[name] = "Scarce"
+        else:
+            tiers[name] = "Rare"
+    return tiers
+
+
+# Human-friendly IUCN Red List labels.
+IUCN_LABELS = {
+    "LC": "Least Concern",
+    "NT": "Near Threatened",
+    "VU": "Vulnerable",
+    "EN": "Endangered",
+    "CR": "Critically Endangered",
+    "EW": "Extinct in the Wild",
+    "EX": "Extinct",
+    "DD": "Data Deficient",
+    "NE": "Not Evaluated",
+}
+
+
 def aggregate(features: list[dict]) -> dict:
     """Group point features into hexagons and summarise each one."""
+    # Pre-compute rarity tiers from the full dataset (not per-hex).
+    rarity = rarity_tiers(features)
+
     # 1) Drop every point into its hexagon bucket.
     buckets: dict[str, list[dict]] = defaultdict(list)
     for f in features:
@@ -65,12 +126,20 @@ def aggregate(features: list[dict]) -> dict:
         species = []
         for name, plist in by_species.items():
             plist.sort(key=lambda p: p.get("imageIsStock", True))
-            species.append({
+            rep = plist[0]  # representative record for this species
+            entry = {
                 "name": name,
-                "group": plist[0]["group"],
+                "group": rep["group"],
                 "count": len(plist),
-                "image": plist[0]["image"],
-            })
+                "image": rep["image"],
+                "rarity": rarity.get(name, "Unknown"),
+            }
+            # IUCN status — pick the first non-null value across the species' records.
+            iucn_code = next((p["iucn"] for p in plist if p.get("iucn")), None)
+            entry["iucn"] = IUCN_LABELS.get(iucn_code, iucn_code) if iucn_code else None
+            # Wikipedia extract (fun fact) — same strategy, first non-null.
+            entry["extract"] = next((p["extract"] for p in plist if p.get("extract")), None)
+            species.append(entry)
         species.sort(key=lambda s: s["count"], reverse=True)  # most-sighted first
 
         properties = {

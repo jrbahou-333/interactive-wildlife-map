@@ -24,7 +24,7 @@ html, body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Group filter panel — top-left, just below the HUD. */
+/* Filter panel — top-left, just below the HUD. */
 #filter {
   position: absolute;
   top: 56px;
@@ -34,20 +34,35 @@ html, body {
   padding: 8px 12px;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  font: 14px system-ui, sans-serif;
+  font: 13px system-ui, sans-serif;
 }
-#filter label {
+/* Each filter row: a label on top with a <select> below it. */
+.filter-row {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  cursor: pointer;
-  user-select: none; /* don't select the text when tapping the row */
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
 }
-#filter input {
-  width: 16px;
-  height: 16px;
-  accent-color: #2e7d5b; /* match the markers' green */
+.filter-row:not(:last-child) {
+  border-bottom: 1px solid #e0e4dd;
+}
+.filter-row label {
+  font-weight: 600;
+  font-size: 11px;
+  color: #6b7268;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filter-row select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #ccd2c8;
+  border-radius: 4px;
+  background: #fff;
+  font: 13px system-ui, sans-serif;
+  color: #2c3530;
+  cursor: pointer;
+  accent-color: #2e7d5b;
 }
 
 /* Base styling for the MapLibre popup (the hexagon panel lives inside it). */
@@ -56,15 +71,57 @@ html, body {
   line-height: 1.4;
 }
 
-/* Hexagon click panel: a heading + an expandable card per species. */
-.hex-panel {
-  max-height: 60vh;       /* stay on-screen; scroll if there are many cards */
-  overflow-y: auto;
-}
+/* Hexagon click panel: a heading, a card list, and a show-all toggle. */
 .hex-title {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 6px;
+}
+/* The card list. When expanded it gains .scroll: capped height (~5 cards) with
+   a scrollbar for the rest, so the title and toggle stay put. */
+.hex-cards.scroll {
+  max-height: 290px;
+  overflow-y: auto;
+}
+/* Group heading shown in the expanded, grouped view. Clickable to collapse. */
+.hex-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12px;
+  color: #2e7d5b;
+  margin: 8px 0 4px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.hex-group:hover {
+  background: #e7efe3;
+}
+.hex-group:first-child {
+  margin-top: 0;
+}
+.hex-group-chev {
+  font-size: 11px;
+  flex: none;
+}
+/* "Show all / Show fewer" toggle. */
+.hex-toggle {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: #2e7d5b;
+  color: #fff;
+  font: 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+.hex-toggle:hover {
+  background: #266b4d;
 }
 .hex-card {
   margin-bottom: 4px;
@@ -117,6 +174,17 @@ html, body {
   padding: 4px 8px 8px 8px;
   font-size: 12px;
 }
+/* Larger photo inside an opened card — click it to enlarge in the lightbox. */
+.hex-card-photo {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #e3e7e0;
+  cursor: zoom-in;
+}
 .fact {
   display: flex;
   gap: 8px;
@@ -131,8 +199,20 @@ html, body {
 .fact-v {
   color: #2c3530;
 }
-.hex-more {
-  color: #888;
-  font-size: 11px;
-  margin-top: 2px;
+/* Full-screen photo lightbox (created on demand, click to dismiss). */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 92%;
+  max-height: 92%;
+  border-radius: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }

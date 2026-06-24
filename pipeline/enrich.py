@@ -106,15 +106,16 @@ def build_name_map(df: pd.DataFrame) -> dict[str, str]:
     return name_map
 
 
-def wiki_lookup(scientific_name: str, retries: int = 3) -> tuple[str | None, str | None]:
+def wiki_lookup(scientific_name: str, retries: int = 5) -> tuple[str | None, str | None, str | None]:
     """Look up a species on Wikipedia, retrying transient failures.
 
     We query by scientific name ("Vulpes vulpes"), which reliably redirects to
-    the right article. Returns (thumbnail_url, page_title) — the title is a
-    decent common name ("Red fox") we can fall back to. Either may be None.
+    the right article. Returns (thumbnail_url, page_title, extract). The title
+    is a decent common name ("Red fox") we can fall back to; the extract is the
+    opening paragraph. Any may be None.
 
     With ~150 species we sometimes get rate-limited or a flaky connection, so we
-    retry a few times with a short backoff. A genuine 404 (no article) is final.
+    retry up to 5 times with exponential backoff. A genuine 404 is final.
     """
     url = WIKI_SUMMARY + scientific_name.replace(" ", "_")
     for attempt in range(retries):
@@ -129,13 +130,17 @@ def wiki_lookup(scientific_name: str, retries: int = 3) -> tuple[str | None, str
                 title = data.get("title")
                 if title and title.lower() == scientific_name.lower():
                     title = None
-                return image, title
+                # The opening sentence(s) of the Wikipedia article — used as a
+                # fun fact on the species card. 'extract' is plain text, usually
+                # one or two informative sentences.
+                extract = data.get("extract")
+                return image, title, extract
             if resp.status_code == 404:
-                return None, None  # no such article — don't bother retrying
+                return None, None, None  # no such article — don't bother retrying
         except requests.RequestException:
             pass
-        time.sleep(1 + attempt)  # back off, then retry (handles 429 / flaky net)
-    return None, None
+        time.sleep(2 ** attempt)  # exponential backoff (1, 2, 4, 8, 16s)
+    return None, None, None
 
 
 def _load_cache() -> dict[str, dict]:
@@ -157,11 +162,14 @@ def build_species_wiki(species: list[str]) -> dict[str, dict]:
     print(f"Wikipedia: {len(unique) - len(todo)} cached, fetching {len(todo)}...")
 
     for name in todo:
-        image, title = wiki_lookup(name)
+        image, title, extract = wiki_lookup(name)
         if image or title:                       # only cache successes
-            cache[name] = {"image": image, "title": title}
+            entry = {"image": image, "title": title}
+            if extract:
+                entry["extract"] = extract
+            cache[name] = entry
         print(f"  wiki for {name}: photo={'ok' if image else 'none'} name={title or '-'}")
-        time.sleep(0.2)  # be gentle on Wikipedia's free API
+        time.sleep(0.5)  # be gentle on Wikipedia's free API
 
     WIKI_CACHE.write_text(json.dumps(cache, indent=2))
     # Return an entry for every requested species (missing ones come back empty).
@@ -202,6 +210,13 @@ def to_geojson(df: pd.DataFrame) -> dict:
                 credit = None
                 is_stock = True
 
+        # IUCN Red List category straight from GBIF (e.g. "LC", "NT", "VU", "EN").
+        iucn = getattr(row, "iucnRedListCategory", None)
+        iucn = iucn if isinstance(iucn, str) else None
+
+        # Wikipedia opening sentence — a quick fun fact for the species card.
+        extract = wiki[row.species].get("extract")
+
         features.append({
             "type": "Feature",
             "geometry": {
@@ -215,6 +230,8 @@ def to_geojson(df: pd.DataFrame) -> dict:
                 "image": image,             # always set now
                 "imageCredit": credit,      # attribution line, or None
                 "imageIsStock": is_stock,   # True = not the actual sighting's photo
+                "iucn": iucn,
+                "extract": extract,
                 "month": month,
                 "year": year,
                 "detections": int(row.detections),  # times seen at this spot
