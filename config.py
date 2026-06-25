@@ -72,8 +72,19 @@ MAX_RECORDS = 10_000
 # ---------------------------------------------------------------------------
 # Aggregation options (used by aggregate.py + the map)
 # ---------------------------------------------------------------------------
-# We bin sightings into H3 hexagons to show "hotspots" when zoomed out. H3
-# resolution controls hexagon size: bigger number = smaller hexes = more, finer
-# hotspots. Rough edge lengths: res 7 ~1.2 km, res 8 ~0.46 km, res 9 ~0.17 km.
-# 8 is a good starting point for a town-sized area — tune it by eye.
+# We bin sightings into H3 hexagons at MULTIPLE resolutions so the map can show
+# large regional hexes when zoomed out and fine neighbourhood hexes when zoomed in.
+# Each entry maps an H3 resolution to the MapLibre zoom range [minzoom, maxzoom)
+# where it's visible.  Approximate hex sizes for reference:
+#   res 3 ~41 km edge  (UK fits in ~6-8 hexes)
+#   res 5 ~6 km edge   (county-sized bins)
+#   res 7 ~0.9 km edge (neighbourhood-sized)
+#   res 8 ~0.46 km edge (street-level detail)
+HEX_RESOLUTIONS = {
+    3: (0, 8),     # zoomed way out: very few, large hexes
+    5: (8, 10),    # medium: roughly council-area-sized
+    7: (10, 12),   # zoomed in: neighbourhood scale
+    8: (12, 24),   # max detail: the original resolution
+}
+# Keep a single-resolution alias for any code that still references it.
 HEX_RESOLUTION = 8

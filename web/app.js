@@ -34,6 +34,16 @@ const GROUP_ICONS = {
 // How many species cards to show before the panel is expanded.
 const COLLAPSED_CARDS = 3;
 
+// H3 resolutions and their zoom ranges (must match config.HEX_RESOLUTIONS in
+// the Python pipeline). Each resolution gets its own fill + outline layer pair
+// that is only visible in its zoom range.
+const HEX_ZOOM_MAP = {
+  3: [0, 8],
+  5: [8, 10],
+  7: [10, 12],
+  8: [12, 24],
+};
+
 // Green colour ramp for the hexagons, applied to whatever count expression we
 // pass in — the total normally, or a filtered per-group sum when the group
 // filter is active. Counts are very skewed, so breakpoints are spread roughly
@@ -77,24 +87,40 @@ map.on("load", async () => {
 
   map.addSource("hexes", { type: "geojson", data: hexgeo });
 
-  // Filled hexagons shaded by sighting count (a density "heatmap").
-  map.addLayer({
-    id: "hex-fill",
-    type: "fill",
-    source: "hexes",
-    paint: {
-      "fill-color": hexRamp(["get", "count"]), // recoloured when filtering
-      "fill-opacity": 0.6, // let the habitat basemap show through a little
-    },
-  });
+  // Create a fill + outline layer pair per H3 resolution, each visible only in
+  // its zoom range. The "resolution" property on each feature (set by
+  // aggregate.py) controls which layer it appears in via a filter.
+  const fillLayerIds = [];
+  const outlineLayerIds = [];
+  for (const [res, [minz, maxz]] of Object.entries(HEX_ZOOM_MAP)) {
+    const r = Number(res);
+    const fillId = `hex-fill-${r}`;
+    const outlineId = `hex-outline-${r}`;
+    fillLayerIds.push(fillId);
+    outlineLayerIds.push(outlineId);
 
-  // A thin outline so neighbouring hexagons read as separate tiles.
-  map.addLayer({
-    id: "hex-outline",
-    type: "line",
-    source: "hexes",
-    paint: { "line-color": "#1f7a3d", "line-width": 1, "line-opacity": 0.5 },
-  });
+    map.addLayer({
+      id: fillId,
+      type: "fill",
+      source: "hexes",
+      minzoom: minz,
+      maxzoom: maxz,
+      filter: ["==", ["get", "resolution"], r],
+      paint: {
+        "fill-color": hexRamp(["get", "count"]),
+        "fill-opacity": 0.6,
+      },
+    });
+    map.addLayer({
+      id: outlineId,
+      type: "line",
+      source: "hexes",
+      minzoom: minz,
+      maxzoom: maxz,
+      filter: ["==", ["get", "resolution"], r],
+      paint: { "line-color": "#1f7a3d", "line-width": 1, "line-opacity": 0.5 },
+    });
+  }
 
   // --- 3. Click a hexagon -> pinned species panel --------------------------
   // A pinned popup (not hover-driven) so the cursor can enter it and click the
@@ -117,12 +143,8 @@ map.on("load", async () => {
     // IUCN Red List status — this is the GLOBAL assessment, not UK-specific.
     // A species can be globally endangered but locally common (e.g. rabbit).
     if (s.iucn) rows.push(["IUCN (global)", s.iucn]);
-    // Wikipedia extract — trimmed to the first sentence for brevity.
-    if (s.extract) {
-      // Grab the first sentence: split on ". " and take the first part.
-      const firstSentence = s.extract.split(". ")[0] + ".";
-      rows.push(["Did you know?", firstSentence]);
-    }
+    // Hand-curated fun fact from data/fun_facts.json.
+    if (s.funFact) rows.push(["Did you know?", s.funFact]);
     // Fallback if the pipeline didn't supply any facts yet.
     if (!rows.length) rows.push(["Info", "No details available yet."]);
     return rows
@@ -254,9 +276,9 @@ map.on("load", async () => {
   }
 
   // One click handler: open/replace the panel when a hexagon is clicked, or
-  // dismiss it when clicking empty space.
+  // dismiss it when clicking empty space. Query all fill layers.
   map.on("click", (e) => {
-    const hits = map.queryRenderedFeatures(e.point, { layers: ["hex-fill"] });
+    const hits = map.queryRenderedFeatures(e.point, { layers: fillLayerIds });
     if (hits.length) {
       panel.setLngLat(e.lngLat).setDOMContent(buildHexPanel(hits[0].properties)).addTo(map);
     } else {
@@ -264,9 +286,11 @@ map.on("load", async () => {
     }
   });
 
-  // Pointer cursor over clickable hexagons.
-  map.on("mouseenter", "hex-fill", () => (map.getCanvas().style.cursor = "pointer"));
-  map.on("mouseleave", "hex-fill", () => (map.getCanvas().style.cursor = ""));
+  // Pointer cursor over clickable hexagons (register on each fill layer).
+  for (const id of fillLayerIds) {
+    map.on("mouseenter", id, () => (map.getCanvas().style.cursor = "pointer"));
+    map.on("mouseleave", id, () => (map.getCanvas().style.cursor = ""));
+  }
 
   // --- 4. Filters -----------------------------------------------------------
   // Filters work at the species level: group, rarity tier, and IUCN status.
@@ -312,10 +336,17 @@ map.on("load", async () => {
       updated.features[i].properties.count = count;
     }
     map.getSource("hexes").setData(updated);
-    // Recolour using the (now-overwritten) count property.
-    map.setPaintProperty("hex-fill", "fill-color", hexRamp(["get", "count"]));
-    map.setFilter("hex-fill", [">", ["get", "count"], 0]);
-    map.setFilter("hex-outline", [">", ["get", "count"], 0]);
+    // Recolour and hide empty hexes across all resolution layers.
+    for (const id of fillLayerIds) {
+      map.setPaintProperty(id, "fill-color", hexRamp(["get", "count"]));
+      // Combine the resolution filter with a count > 0 filter.
+      const res = Number(id.split("-").pop());
+      map.setFilter(id, ["all", ["==", ["get", "resolution"], res], [">", ["get", "count"], 0]]);
+    }
+    for (const id of outlineLayerIds) {
+      const res = Number(id.split("-").pop());
+      map.setFilter(id, ["all", ["==", ["get", "resolution"], res], [">", ["get", "count"], 0]]);
+    }
     panel.remove();
     updateHud(updated);
   }

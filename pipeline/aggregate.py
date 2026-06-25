@@ -17,10 +17,15 @@ Run with:  python -m pipeline.aggregate
 
 import json
 from collections import defaultdict
+from pathlib import Path
 
 import h3
 
 import config
+
+# Hand-written fun facts keyed by scientific name. Generated once, lives in the
+# repo so it doesn't need an API call at pipeline time.
+FUN_FACTS_PATH = Path(__file__).parent.parent / "data" / "fun_facts.json"
 
 
 def load_points() -> list[dict]:
@@ -100,16 +105,21 @@ IUCN_LABELS = {
 }
 
 
-def aggregate(features: list[dict]) -> dict:
-    """Group point features into hexagons and summarise each one."""
-    # Pre-compute rarity tiers from the full dataset (not per-hex).
-    rarity = rarity_tiers(features)
+def load_fun_facts() -> dict[str, str]:
+    """Load the hand-written fun facts file (scientific name -> fact string)."""
+    if FUN_FACTS_PATH.is_file():
+        return json.loads(FUN_FACTS_PATH.read_text())
+    return {}
 
+
+def aggregate(features: list[dict], resolution: int,
+              rarity: dict, fun_facts: dict) -> list[dict]:
+    """Group point features into hexagons at one H3 resolution and summarise."""
     # 1) Drop every point into its hexagon bucket.
     buckets: dict[str, list[dict]] = defaultdict(list)
     for f in features:
         lng, lat = f["geometry"]["coordinates"]  # GeoJSON order is [lng, lat]
-        cell = h3.latlng_to_cell(lat, lng, config.HEX_RESOLUTION)
+        cell = h3.latlng_to_cell(lat, lng, resolution)
         buckets[cell].append(f["properties"])
 
     # 2) Summarise each occupied hexagon.
@@ -137,8 +147,9 @@ def aggregate(features: list[dict]) -> dict:
             # IUCN status — pick the first non-null value across the species' records.
             iucn_code = next((p["iucn"] for p in plist if p.get("iucn")), None)
             entry["iucn"] = IUCN_LABELS.get(iucn_code, iucn_code) if iucn_code else None
-            # Wikipedia extract (fun fact) — same strategy, first non-null.
-            entry["extract"] = next((p["extract"] for p in plist if p.get("extract")), None)
+            # Fun fact from the hand-curated file, keyed by scientific name.
+            sci_name = rep.get("scientificName") or rep.get("scientificname", "")
+            entry["funFact"] = fun_facts.get(sci_name)
             species.append(entry)
         species.sort(key=lambda s: s["count"], reverse=True)  # most-sighted first
 
@@ -157,27 +168,35 @@ def aggregate(features: list[dict]) -> dict:
             key = f"count_{s['group']}"
             properties[key] = properties.get(key, 0) + s["count"]
 
+        properties["resolution"] = resolution
         hexes.append({
             "type": "Feature",
             "geometry": hex_polygon(cell),
             "properties": properties,
         })
 
-    return {"type": "FeatureCollection", "features": hexes}
+    return hexes
 
 
 def main():
     features = load_points()
-    fc = aggregate(features)
+    # Pre-compute once: rarity tiers and fun facts shared across all resolutions.
+    rarity = rarity_tiers(features)
+    fun_facts = load_fun_facts()
 
+    all_hexes = []
+    for res, (minz, maxz) in sorted(config.HEX_RESOLUTIONS.items()):
+        hexes = aggregate(features, res, rarity, fun_facts)
+        all_hexes.extend(hexes)
+        counts = [h["properties"]["count"] for h in hexes]
+        print(f"  res {res} (zoom {minz}-{maxz}): {len(hexes)} hexes, "
+              f"busiest {max(counts)} / quietest {min(counts)}")
+
+    fc = {"type": "FeatureCollection", "features": all_hexes}
     out = config.WEB_DATA / "hexes.geojson"
     out.write_text(json.dumps(fc))
-
-    counts = [f["properties"]["count"] for f in fc["features"]]
-    print(f"Aggregated {len(features)} sightings into {len(fc['features'])} "
-          f"hexagons (H3 resolution {config.HEX_RESOLUTION}) -> {out}")
-    if counts:
-        print(f"  busiest hex: {max(counts)} sightings · quietest: {min(counts)}")
+    print(f"\nWrote {len(all_hexes)} total hexes across "
+          f"{len(config.HEX_RESOLUTIONS)} resolutions -> {out}")
 
 
 if __name__ == "__main__":
