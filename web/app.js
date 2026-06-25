@@ -29,6 +29,8 @@ const CROSBY = [-3.02, 53.49];
 const GROUP_ICONS = {
   Mammals: "🐇",
   Birds: "🐦",
+  Amphibians: "🐸",
+  Reptiles: "🦎",
 };
 
 // How many species cards to show before the panel is expanded.

@@ -723,5 +723,40 @@
     "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Common_Shellduck_%28Tadorna_tadorna%29_%2826499348215%29.jpg/330px-Common_Shellduck_%28Tadorna_tadorna%29_%2826499348215%29.jpg",
     "title": "Common shelduck",
     "extract": "The common shelduck is a waterfowl species of the shelduck genus Tadorna. It is widespread and common in the Palearctic, in Europe and northwest Africa mainly breeding on temperate coasts, saline pools and estuaries, and in Asia on inland salt lakes; increasingly it is also using open freshwater habitats inland. Wintering is in temperate to subtropical regions."
+  },
+  "Sturnus vulgaris": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Common_starling_%28Sturnus_vulgaris%29_breeding_male_Marken.jpg/330px-Common_starling_%28Sturnus_vulgaris%29_breeding_male_Marken.jpg",
+    "title": "Common starling",
+    "extract": "The common starling, also known simply as the starling in Great Britain and Ireland, and as the European starling in North America, is a medium-sized passerine bird in the starling family, Sturnidae. It is about 20\u00a0cm (8\u00a0in) long and has glossy black plumage with a metallic sheen, which is speckled with white at some times of the year. The legs are pink and the bill is black in winter and yellow in summer; young birds have browner plumage than the adults. Its gift for mimicry has been noted in literature including the Mabinogion and the works of Pliny the Elder and William Shakespeare."
+  },
+  "Tachybaptus ruficollis": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Little_grebe_Zwergtaucher.jpg/330px-Little_grebe_Zwergtaucher.jpg",
+    "title": "Little grebe",
+    "extract": "The little grebe, also known as the dabchick, is a member of the grebe family of water birds. The genus name is from Ancient Greek takhus \"fast\" and bapto \"to sink under\". The specific ruficollis is from Latin rufus \"red\" and Modern Latin -collis, \"-necked\", itself derived from Latin collum \"neck\"."
+  },
+  "Bufo bufo": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Common_Toad_Cornwall.jpeg/330px-Common_Toad_Cornwall.jpeg",
+    "title": "Common toad",
+    "extract": "The common toad, also known as European toad or simply the toad in Anglophone parts of Europe, is a toad found throughout most of Europe, western North Asia and a small part of Northwest Africa. It belongs to a group of closely related species descended from a common ancestral line of toads and forming a species complex. The toad is an inconspicuous animal, usually lying hidden during the day. It becomes active at dusk, hunting the invertebrates on which it feeds at night. It moves with a slow, ungainly walk or by jumping short distances, and has greyish-brown skin covered with wart-like lumps."
+  },
+  "Larus hyperboreus": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Glacous_Gull_on_ice.jpg/330px-Glacous_Gull_on_ice.jpg",
+    "title": "Glaucous gull",
+    "extract": "The glaucous gull is a large gull, the second-largest gull in the world. The genus name is from Latin larus, which appears to have referred to a gull or other large seabird. The specific name hyperboreus is Latin for \"northern\" from the Ancient Greek Huperboreoi people from the far north \"Glaucous\" is from Latin glaucus and denotes the grey colour of the gull. An older English name for this species is burgomaster."
+  },
+  "Rana temporaria": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/European_Common_Frog_Rana_temporaria.jpg/330px-European_Common_Frog_Rana_temporaria.jpg",
+    "title": "Common frog",
+    "extract": "The common frog or grass frog, also known as the European common frog, European common brown frog, European grass frog, European Holarctic true frog, European pond frog, European brown frog, or simply the frog, is a semi-aquatic amphibian of the family Ranidae, found throughout much of Europe as far north as Scandinavia and as far east as the Urals, except for most of the Iberian Peninsula, southern Italy, and the southern Balkans. The farthest west it can be found is Ireland. It is also found in Asia, and eastward to Japan. The nominative, and most common, subspecies Rana temporaria temporaria is a largely terrestrial frog native to Europe. It is distributed throughout northern Europe and can be found in Ireland, the Isle of Lewis and as far east as Japan."
+  },
+  "Somateria mollissima": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/%D0%9F%D1%83%D1%85%D1%96%D0%B2%D0%BA%D0%B0_%D0%BD%D0%B0_%D0%9A%D1%96%D0%BD%D0%B1%D1%83%D1%80%D0%BD%D1%81%D1%8C%D0%BA%D1%96%D0%B9_%D0%BA%D0%BE%D1%81%D1%96.jpg/330px-%D0%9F%D1%83%D1%85%D1%96%D0%B2%D0%BA%D0%B0_%D0%BD%D0%B0_%D0%9A%D1%96%D0%BD%D0%B1%D1%83%D1%80%D0%BD%D1%81%D1%8C%D0%BA%D1%96%D0%B9_%D0%BA%D0%BE%D1%81%D1%96.jpg",
+    "title": "Common eider",
+    "extract": "The common eider, also called St. Cuthbert's duck or Cuddy's duck, is a large sea-duck that is distributed over the northern coasts of Europe, North America and eastern Siberia. It breeds in Arctic and some northern temperate regions, but winters somewhat farther south in temperate zones, when it can form large flocks on coastal waters. It can fly at speeds up to 113\u00a0km/h (70\u00a0mph)."
+  },
+  "Triturus cristatus": {
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Kammmolchmaennchen.jpg/330px-Kammmolchmaennchen.jpg",
+    "title": "Northern crested newt",
+    "extract": "The northern crested newt, great crested newt or warty newt is a newt species native to Great Britain, northern and central continental Europe and parts of Western Siberia. It is a large newt, with females growing up to 16\u00a0cm (6.3\u00a0in) long. Its back and sides are dark brown, while the belly is yellow to orange with dark blotches. During the breeding season, males develop a conspicuous jagged crest on their back and tail."
   }
 }

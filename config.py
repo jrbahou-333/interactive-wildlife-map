@@ -49,6 +49,8 @@ ANIMALIA_TAXON_KEY = 1
 GROUPS = {
     "Mammalia": "Mammals",
     "Aves": "Birds",
+    "Amphibia": "Amphibians",
+    "Reptilia": "Reptiles",
 }
 
 # Name of the combined output files: web/data/<OUTPUT_NAME>.geojson, etc.

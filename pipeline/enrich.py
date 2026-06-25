@@ -195,17 +195,18 @@ def to_geojson(df: pd.DataFrame) -> dict:
         common = name_map.get(row.species) or wiki[row.species]["title"]
 
         # Image priority:
-        #   1. this record's own GBIF observation photo (the real sighting),
-        #   2. a representative species photo from Wikipedia (a stock image),
+        #   1. Wikipedia species photo (clean, representative),
+        #   2. this record's own GBIF observation photo (user-submitted),
         #   3. a local placeholder so EVERY sighting has something to show.
-        image, credit = pick_image(getattr(row, "media", None))
-        is_stock = False
-        if not image:
-            image = wiki[row.species]["image"]
-            if image:
-                credit = "Representative photo · Wikimedia Commons"
-                is_stock = True
-            else:
+        wiki_image = wiki[row.species]["image"]
+        if wiki_image:
+            image = wiki_image
+            credit = "Representative photo · Wikimedia Commons"
+            is_stock = True
+        else:
+            image, credit = pick_image(getattr(row, "media", None))
+            is_stock = False
+            if not image:
                 image = PLACEHOLDER_IMAGE
                 credit = None
                 is_stock = True
